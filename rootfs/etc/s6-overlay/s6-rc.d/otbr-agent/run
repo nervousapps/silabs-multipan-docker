@@ -20,6 +20,7 @@ declare thread_if
 thread_if="wpan0"
 
 backbone_if=$BACKBONE_IF
+nat64=$NAT64
 
 otbr_log_level=$OTBR_LOG_LEVEL
 case "${otbr_log_level}" in
@@ -84,6 +85,13 @@ else
     ip6tables -P FORWARD ACCEPT
     # HAOS 9.3 and earlier (for 9.4 accept is the default so this won't do anything)
     ip6tables-legacy -P FORWARD ACCEPT
+fi
+
+if [ "${nat64}" != "false" ]; then
+    iptables -t mangle -A PREROUTING -i ${thread_if} -j MARK --set-mark 0x1001
+    iptables -t nat -A POSTROUTING -m mark --mark 0x1001 -j MASQUERADE
+    iptables -t filter -A FORWARD -o ${backbone_if} -j ACCEPT
+    iptables -t filter -A FORWARD -i ${backbone_if} -j ACCEPT
 fi
 
 otbr_rest_listen="::"
