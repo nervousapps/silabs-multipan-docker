@@ -125,3 +125,10 @@ you also need the [python-matter-server](https://github.com/home-assistant-libs/
 | amd64   | https://hub.docker.com/r/homeassistant/amd64-addon-silabs-multiprotocol   |
 | armv7   | https://hub.docker.com/r/homeassistant/arm-addon-silabs-multiprotocol     |
 | i386    | not exists (not supported by HA)                                          |
+
+
+## Build base image
+```sh
+cd silabs-multiprotocol
+./build.sh
+```
