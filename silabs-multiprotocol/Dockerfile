@@ -89,6 +89,7 @@ RUN \
 FROM --platform=linux/amd64 cross-builder-${BUILD_ARCH} AS zigbeed-builder
 
 ARG GECKO_SDK_VERSION
+ARG BUILD_ARCH
 
 RUN \
     set -x \
@@ -123,6 +124,15 @@ RUN \
     && patch -p1 < /usr/src/0001-Use-TCP-socket-instead-of-serial-port-SDK.patch \
     && GECKO_SDK=$(pwd) \
     && slc signature trust --sdk=${GECKO_SDK} \
+    && if [ "${BUILD_ARCH}" = "armv7" ]; then \
+            /bin/echo -e "\nprovides:\n  - name: zigbee_use_release_libraries\n  - name: arm32v7\n" >> protocol/zigbee/app/zigbeed/zigbeed.slcp; \
+        elif [ "${BUILD_ARCH}" = "amd64" ]; then \
+            /bin/echo -e "\nprovides:\n  - name: zigbee_use_release_libraries\n" >> protocol/zigbee/app/zigbeed/zigbeed.slcp; \
+        elif [ "${BUILD_ARCH}" = "aarch64" ]; then \
+            /bin/echo -e "\nprovides:\n  - name: zigbee_use_release_libraries\n  - name: arm64v8\n" >> protocol/zigbee/app/zigbeed/zigbeed.slcp; \
+        else \
+            exit 1; \
+        fi \
     && cd protocol/zigbee \
     && slc generate \
        --sdk=${GECKO_SDK} \
@@ -131,7 +141,6 @@ RUN \
        --export-destination=$(pwd)/app/zigbeed/output \
        --copy-proj-sources \
     && cd app/zigbeed/output
-# || cat  /usr/src/slc_cli/bin/slc-cli/configuration/*.log && exit 1
 RUN cd gecko_sdk/protocol/zigbee/app/zigbeed/output \
     && patch -p1 < /usr/src/0001-Use-TCP-socket-instead-of-serial-port-main-app.patch \
     && make -f zigbeed.Makefile \
@@ -140,6 +149,8 @@ RUN cd gecko_sdk/protocol/zigbee/app/zigbeed/output \
         LD="${DEBIAN_CROSS_PREFIX}-gcc" \
         CXX="${DEBIAN_CROSS_PREFIX}-g++" \
         C_FLAGS="-std=gnu99 -DEMBER_MULTICAST_TABLE_SIZE=16" \
+        LD_FLAGS="" \
+        GROUP_START="-Wl,--start-group" GROUP_END="-Wl,--end-group -lpthread" \
         debug
 
 FROM $BUILD_FROM
@@ -169,10 +180,10 @@ ENV WEB_GUI=1
 ENV DOCKER 1
 
 COPY otbr-patches/0001-Avoid-writing-to-system-console.patch /usr/src
-COPY otbr-patches/0001-rest-support-erasing-all-persistent-info-1908.patch /usr/src
 COPY otbr-patches/0002-rest-support-deleting-the-dataset.patch /usr/src
-COPY otbr-patches/0003-mdns-update-mDNSResponder-to-1790.80.10.patch /usr/src
-COPY otbr-patches/0004-mdns-add-Linux-specific-patches.patch /usr/src
+
+# OTBR accesses the CPC Daemon build directory
+COPY --from=cpcd-builder /usr/src/cpc-daemon /usr/src/gecko_sdk/platform/service/cpc/daemon
 
 # Required and installed during build (script/bootstrap), could be removed
 ENV OTBR_BUILD_DEPS build-essential ninja-build cmake wget ca-certificates \
@@ -190,32 +201,66 @@ RUN \
        nodejs \
        npm \
        iproute2 \
-       patch \
-       python3 \
-       python3-dev \
-       python3-pip \
-       python3-aiohttp \
-       python3-cryptography \
+       patch
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
+       python3
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
+       python3-dev
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
+       python3-pip
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
+       python3-aiohttp
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
+       python3-cryptography
+RUN \
+    set -x \
+    && apt-get update \
+    # Install npm/nodejs for WebUI manually to avoid systemd getting pulled in \
+    && apt-get install -y --no-install-recommends \ 
        python3-yarl \
        lsb-release \
        netcat \
        sudo \
+       libmbedtls-dev
+RUN \
+    set -x \
     && cd ot-br-posix \
-    && patch -p1 < /usr/src/0001-Avoid-writing-to-system-console.patch \
-    && patch -p1 < /usr/src/0001-rest-support-erasing-all-persistent-info-1908.patch \
-    && patch -p1 < /usr/src/0002-rest-support-deleting-the-dataset.patch \
-    && patch -p1 < /usr/src/0003-mdns-update-mDNSResponder-to-1790.80.10.patch \
-    && patch -p1 < /usr/src/0004-mdns-add-Linux-specific-patches.patch \
+    #&& patch -p1 < /usr/src/0001-Avoid-writing-to-system-console.patch \
+    #&& patch -p1 < /usr/src/0002-rest-support-deleting-the-dataset.patch \
     && ln -s ../../../openthread/ third_party/openthread/repo \
     && (cd third_party/openthread/repo \
         && ln -s ../../../../silabs-vendor-interface/openthread-core-silabs-posix-config.h src/posix/platform/openthread-core-silabs-posix-config.h) \
     && chmod +x ./script/* \
     && ./script/bootstrap \
     # Mimic rt_tables_install \
-    && echo "88 openthread" >> /etc/iproute2/rt_tables \
+    && echo "88 openthread" >> /etc/iproute2/rt_tables
+RUN \
+    set -x \
+    && cd ot-br-posix \
     # Mimic otbr_install \
     && (./script/cmake-build \
-        -DBUILD_TESTING=OFF \
+        -DBUILD_TESTING=ON \
+        -DBUILD_SHARED_LIBS=OFF \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_MODULE_PATH=/usr/src/silabs-vendor-interface/ \
         -DOTBR_FEATURE_FLAGS=ON \
@@ -226,21 +271,29 @@ RUN \
         -DOTBR_VERSION= \
         -DOT_PACKAGE_VERSION= \
         -DOTBR_DBUS=OFF \
+        -DOT_THREAD_VERSION=1.4 \
         -DOT_MULTIPAN_RCP=ON \
-        -DOT_POSIX_CONFIG_RCP_BUS=VENDOR \
-        -DOT_POSIX_CONFIG_RCP_VENDOR_DEPS_PACKAGE=SilabsRcpDeps \
+        -DCPCD_SOURCE_DIR=/usr/src/gecko_sdk/platform/service/cpc/daemon \
+        -DOT_POSIX_RCP_VENDOR_BUS=ON \
+        -DOT_POSIX_CONFIG_RCP_VENDOR_DEPS_PACKAGE=/usr/src/silabs-vendor-interface/posix_vendor_rcp.cmake \
         -DOT_POSIX_CONFIG_RCP_VENDOR_INTERFACE=/usr/src/silabs-vendor-interface/cpc_interface.cpp \
-        -DOT_CONFIG="openthread-core-silabs-posix-config.h" \
+        -DOT_PLATFORM_CONFIG="openthread-core-silabs-posix-config.h" \
         -DOT_LINK_RAW=1 \
         -DOTBR_VENDOR_NAME="Home Assistant" \
         -DOTBR_PRODUCT_NAME="Silicon Labs Multiprotocol" \
         -DOTBR_WEB=ON \
         -DOTBR_BORDER_ROUTING=ON \
         -DOTBR_REST=ON \
-        -DOTBR_BACKBONE_ROUTER=ON \
+        -DOTBR_BACKBONE_ROUTER=ON)
+RUN \
+    set -x \
+    && cd ot-br-posix \
         && cd build/otbr/ \
         && ninja \
-        && ninja install) \
+        && ninja install
+RUN \
+    set -x \
+    && cd ot-br-posix \
     && pip install universal-silabs-flasher==${UNIVERSAL_SILABS_FLASHER} \
     && apt-get purge -y --auto-remove \
        build-essential \

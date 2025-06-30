@@ -1,4 +1,4 @@
-FROM homeassistant/aarch64-addon-silabs-multiprotocol:2.4.3
+FROM --platform=aarch64 local/addon-builder 
 
 ENV S6_VERBOSITY=3 \
     DEVICE="/dev/ttyUSB0" \

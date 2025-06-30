@@ -127,8 +127,42 @@ you also need the [python-matter-server](https://github.com/home-assistant-libs/
 | i386    | not exists (not supported by HA)                                          |
 
 
-## Build base image
+# Build image with updated packages versions
+## Build base image silabs-multiprotocol
+### Update versions
+In silabs-multiprotocol/build.yaml
+
+```yaml
+args:
+  CPCD_VERSION: v4.7.0  # actual value
+  GECKO_SDK_VERSION: v4.4.6  # actual value
+  UNIVERSAL_SILABS_FLASHER: 0.0.31  # actual value
+```
+
+### Change final device ARCH
+In silabs-multiprotocol/build.sh
+
+```sh
+ARCH=aarch64 # default value
+```
+
+
+### Build base image
 ```sh
 cd silabs-multiprotocol
 ./build.sh
+```
+
+Building this image is flaky, segfault appears randomly, try to run the build script few times.
+
+## Build final docker image
+```sh
+docker buildx build .
+```
+
+## Upload docker image to a distant server
+```sh
+docker save -o image_name.tar image_name:tag
+scp image_name.tar user@remote_host:/path/to/destination
+docker load -i /path/to/destination/image_name.tar
 ```

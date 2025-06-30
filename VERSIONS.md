@@ -4,6 +4,7 @@ known working combinations of firmware and container versions
 
 | container | SkyConnect                                                   | sonoff |   |   |
 |-----------|--------------------------------------------------------------|--------|---|---|
+| 2.4.6     | rcp-uart-802154-v4.4.5-skyconnect-460800.gbl from [here](https://github.com/darkxst/silabs-firmware-builder/tree/main/firmware_builds/skyconnect)               |        |   |   |
 | 2.4.5     | NabuCasa_SkyConnect_RCP_v4.3.2_rcp-uart-hw-802154_460800.gbl |        |   |   |
 | 2.4.4     | NabuCasa_SkyConnect_RCP_v4.3.1_rcp-uart-hw-802154_460800.gbl |        |   |   |
 | 2.4.3     | NabuCasa_SkyConnect_RCP_v4.4.0_rcp-uart-hw-802154_460800.gbl |        |   |   |
